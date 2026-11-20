@@ -1356,6 +1356,10 @@ class App(QtCore.QObject):
                 print("ERROR: ", ext)
                 sys.exit(2)
 
+        # optional local automation bridge for the MCP server (enabled with FLATCAM_MCP_BRIDGE=1)
+        from appCommon.MCPBridge import start_bridge_if_enabled
+        self.mcp_bridge = start_bridge_if_enabled(self)
+
         # accept some type file as command line parameter: FlatCAM project, FlatCAM preferences or scripts
         # the path/file_name must be enclosed in quotes, if it contains spaces
         if App.args:
