@@ -77,6 +77,7 @@ Claude Desktop (`%APPDATA%\Claude\claude_desktop_config.json`):
 | `cncjob` | Geometry to CNC job (milling or laser, any preprocessor) |
 | `drill_cncjob` | Excellon to drilling CNC job |
 | `list_preprocessors`, `export_gcode` | Preprocessors and G-code export |
+| `export_films` | Printable 1:1 A4 PDF photo films for UV exposure: copper negative/positive with drill-centre marks, UV solder mask, mirrored by side |
 | `new_project`, `save_project` | Project handling |
 | `run_tcl`, `tcl_help` | Any other FlatCAM Tcl command |
 
@@ -87,3 +88,7 @@ Claude Desktop (`%APPDATA%\Claude\claude_desktop_config.json`):
 * **UV solder-mask exposure with a laser:** open the mask layer (`.GTS`/`.GBS`) -> `ncc` to fill everything
   except the openings (or `paint` to fill the openings) -> `cncjob` with `pp GRBL_laser`, `las_power`,
   `feedrate` -> `export_gcode`. Tune power, speed and overlap on test squares first.
+* **Photo films for exposure (printer + transparency):** `export_films` with the copper and mask Gerbers,
+  the Edge_Cuts outline and the drill file. Use the copper NEGATIVE film for negative-acting dry-film
+  photoresist and the POSITIVE film for positive photoresist; mask films are for UV-curable solder mask.
+  Print at 100% / actual size, check the 50 mm scale bar, stack two copies using the corner marks.
