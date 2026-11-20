@@ -64,6 +64,10 @@ Type: files; Name: "{autodesktop}\{#AppName}.lnk"
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\FlatCAMPlus.ico"; IconIndex: 0
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\FlatCAMPlus.ico"; IconIndex: 0; Tasks: desktopicon
+; FlatCAM Plus MCP: start with the local automation bridge enabled (only when the MCP server is bundled)
+#if FileExists(AppSourceDir + "\FlatCAMPlusMCP.exe")
+Name: "{autoprograms}\{#AppName} (MCP bridge)"; Filename: "{app}\{#AppExeName}"; Parameters: "--mcp=1"; WorkingDir: "{app}"; IconFilename: "{app}\FlatCAMPlus.ico"; IconIndex: 0
+#endif
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent

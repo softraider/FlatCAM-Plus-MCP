@@ -57,7 +57,15 @@ function Invoke-PythonCommand {
         $prefixArgs = $PythonCommand[1..($PythonCommand.Count - 1)]
     }
 
-    & $exe @prefixArgs @Arguments
+    # Native tools (PyInstaller) print warnings to stderr; with $ErrorActionPreference = "Stop" Windows PowerShell
+    # would turn those into terminating errors. Rely on the exit code ($LASTEXITCODE) instead.
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $exe @prefixArgs @Arguments
+    } finally {
+        $ErrorActionPreference = $previousPreference
+    }
 }
 
 function Test-PythonBits {

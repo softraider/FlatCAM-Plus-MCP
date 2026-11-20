@@ -146,12 +146,14 @@ class App(QtCore.QObject):
 
     cmd_line_help = "FlatCam.py --shellfile=<cmd_line_shellfile>\n" \
                     "FlatCam.py --shellvar=<1,'C:\\path',23>\n" \
-                    "FlatCam.py --headless=1"
+                    "FlatCam.py --headless=1\n" \
+                    "FlatCam.py --mcp=1   (enable the local FlatCAM Plus MCP bridge)"
     try:
         # Multiprocessing pool will spawn additional processes with 'multiprocessing-fork' flag
         cmd_line_options, args = getopt.getopt(sys.argv[1:], "h:", ["shellfile=",
                                                                     "shellvar=",
                                                                     "headless=",
+                                                                    "mcp=",
                                                                     "multiprocessing-fork="])
     except getopt.GetoptError:
         print(cmd_line_help)
@@ -170,6 +172,9 @@ class App(QtCore.QObject):
                 cmd_line_headless = eval(arg)
             except NameError:
                 pass
+        elif opt == '--mcp':
+            if str(arg).strip().lower() in ('1', 'true', 'yes', 'on'):
+                os.environ['FLATCAM_MCP_BRIDGE'] = '1'
 
     # ###############################################################################################################
     # ################################### Version and VERSION DATE ##################################################

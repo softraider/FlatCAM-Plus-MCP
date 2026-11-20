@@ -13,7 +13,8 @@ MCP client  <--stdio-->  mcp_server/server.py  <--HTTP 127.0.0.1 + token-->  Fla
 * `appCommon/MCPBridge.py` runs inside FlatCAM Plus. It executes Tcl commands in the GUI thread (the same
   command layer as the built-in Tcl Shell), waits for background jobs, redraws the canvas and returns
   the result and status messages.
-* The bridge starts only when `FLATCAM_MCP_BRIDGE=1` is set (use `run_flatcam_mcp.bat`). It listens on
+* The bridge starts only when FlatCAM Plus is started with `--mcp=1` or with `FLATCAM_MCP_BRIDGE=1` set
+  (`run_flatcam_mcp.bat` in a source checkout). It listens on
   127.0.0.1 only, on a random port, and every request needs a random per-session token. Port and token are
   stored in `%APPDATA%\FlatCAMPlusMCP\bridge.json`.
 * The MCP server can also start FlatCAM Plus itself (`launch_flatcam`), with a window or headless.
@@ -23,7 +24,19 @@ MCP client  <--stdio-->  mcp_server/server.py  <--HTTP 127.0.0.1 + token-->  Fla
 The server does **not** expose machine control (serial/TCP streaming, jogging, probing, SD jobs).
 Generated G-code is only written to files; sending it to a machine stays a manual step.
 
-## Setup
+## Setup with the Windows installer
+
+The release installer puts `FlatCAMPlusMCP.exe` next to `FlatCAMPlus.exe` (no Python needed) and adds a
+Start menu shortcut **FlatCAM Plus (MCP bridge)** (`FlatCAMPlus.exe --mcp=1`).
+
+```powershell
+claude mcp add --scope user flatcam-plus-mcp -- "C:\Program Files\FlatCAMPlus\FlatCAMPlusMCP.exe"
+```
+
+If the app is not running, the `launch_flatcam` tool starts it with the bridge enabled. Set the
+`FLATCAM_PLUS_EXE` environment variable if FlatCAM Plus is installed somewhere else.
+
+## Setup from source
 
 ```powershell
 cd <repo>

@@ -28,9 +28,31 @@ try:  # mcp >= 2
 except ImportError:  # mcp 1.x
     from mcp.server.fastmcp import FastMCP, Image
 
+FROZEN = getattr(sys, "frozen", False)
 REPO_DIR = Path(__file__).resolve().parent.parent
 VENV_PYW = REPO_DIR / ".venv" / "Scripts" / "pythonw.exe"
 VENV_PY = REPO_DIR / ".venv" / "Scripts" / "python.exe"
+
+
+def _flatcam_command() -> tuple[list[str], str]:
+    """Command line and working dir used to start FlatCAM Plus.
+    Order: FLATCAM_PLUS_EXE env var -> FlatCAMPlus.exe next to this server (installed build) ->
+    source checkout (.venv) -> default install location."""
+    exe = os.environ.get("FLATCAM_PLUS_EXE")
+    if exe and Path(exe).exists():
+        return [exe], str(Path(exe).parent)
+    if FROZEN:
+        sibling = Path(sys.executable).resolve().parent / "FlatCAMPlus.exe"
+        if sibling.exists():
+            return [str(sibling)], str(sibling.parent)
+    if (REPO_DIR / "flatcam.py").exists():
+        py = VENV_PYW if VENV_PYW.exists() else Path(sys.executable)
+        return [str(py), str(REPO_DIR / "flatcam.py")], str(REPO_DIR)
+    for base in (os.environ.get("ProgramFiles", r"C:\Program Files"), os.environ.get("ProgramFiles(x86)", "")):
+        cand = Path(base) / "FlatCAMPlus" / "FlatCAMPlus.exe"
+        if base and cand.exists():
+            return [str(cand)], str(cand.parent)
+    raise RuntimeError("FlatCAM Plus not found. Set FLATCAM_PLUS_EXE to the path of FlatCAMPlus.exe.")
 
 GERBER_EXT = {".gbr", ".ger", ".gtl", ".gbl", ".gts", ".gbs", ".gto", ".gbo", ".gtp", ".gbp", ".gko", ".gm1",
               ".gml", ".gm", ".pho", ".art", ".cmp", ".sol", ".stc", ".sts", ".plc", ".pls", ".g1", ".g2", ".gp1"}
@@ -166,9 +188,9 @@ def launch_flatcam(headless: bool = False, wait_seconds: int = 180) -> str:
     st = _alive()
     if st:
         return "Already running (pid %s, headless=%s, %s objects)." % (st["pid"], st["headless"], st["objects"])
-    exe = VENV_PYW if VENV_PYW.exists() else Path(sys.executable)
+    args, cwd = _flatcam_command()
     env = dict(os.environ, FLATCAM_MCP_BRIDGE="1")
-    args = [str(exe), str(REPO_DIR / "flatcam.py")]
+    args.append("--mcp=1")
     if headless:
         args.append("--headless=1")
     try:
@@ -176,7 +198,7 @@ def launch_flatcam(headless: bool = False, wait_seconds: int = 180) -> str:
     except FileNotFoundError:
         pass
     flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
-    subprocess.Popen(args, cwd=str(REPO_DIR), env=env, creationflags=flags,
+    subprocess.Popen(args, cwd=cwd, env=env, creationflags=flags,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
     deadline = time.time() + wait_seconds
     while time.time() < deadline:
