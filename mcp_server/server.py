@@ -122,7 +122,12 @@ def _alive() -> Optional[dict]:
 
 def _q(value) -> str:
     """Quote a value as a single Tcl word."""
-    s = str(value)
+    if isinstance(value, float):
+        # MCP clients send JSON numbers that arrive as floats (10000 -> 10000.0); several FlatCAM options are
+        # parsed with int() and silently drop "10000.0", so write integral values without a fraction.
+        s = str(int(value)) if value.is_integer() else format(value, ".10g")
+    else:
+        s = str(value)
     if re.fullmatch(r"[\w.\-+:/,]+", s):
         return s
     if "{" in s or "}" in s:
