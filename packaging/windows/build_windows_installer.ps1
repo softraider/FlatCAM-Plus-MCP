@@ -405,7 +405,9 @@ function Build-InstallerTarget {
     }
 
     Write-Host "Inno Setup installer basliyor: $Arch"
-    & $InnoCompiler "/DAppVersion=""$Version""" "/DAppArch=""$Arch""" "/DAppInstallerArch=""$installerArch""" "/DAppIconFile=""$iconPath""" $InstallerScript
+    # Pass /D values without embedded quotes: PowerShell quotes arguments that contain spaces by itself, while
+    # PowerShell 7.3+ would pass embedded quotes literally (e.g. AppVersion becomes "1.1.0" with quotes).
+    & $InnoCompiler "/DAppVersion=$Version" "/DAppArch=$Arch" "/DAppInstallerArch=$installerArch" "/DAppIconFile=$iconPath" $InstallerScript
 
     if ($LASTEXITCODE -ne 0) {
         throw "$Arch Inno Setup installer derlemesi basarisiz oldu."
