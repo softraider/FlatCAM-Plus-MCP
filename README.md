@@ -29,6 +29,22 @@
 
 ---
 
+## FlatCAM Plus MCP (AI assistant integration)
+
+This branch adds **FlatCAM Plus MCP**, an [MCP](https://modelcontextprotocol.io) server that lets AI assistants
+(Claude Code, Claude Desktop or any MCP client) drive FlatCAM Plus: open Gerber/Excellon files, generate isolation,
+NCC, paint, cutout and drilling paths, create milling and laser CNC jobs (including UV solder-mask exposure) and
+export G-code. It has no machine-control tools: sending G-code to a machine stays a manual step.
+
+* Windows installer with the MCP server bundled: [Releases](https://github.com/softraider/FlatCAM-Plus/releases)
+* Setup, tools and safety model: [`mcp_server/README.md`](mcp_server/README.md)
+
+```powershell
+claude mcp add --scope user flatcam-plus-mcp -- "C:\Program Files\FlatCAMPlus\FlatCAMPlusMCP.exe"
+```
+
+---
+
 ## Features
 
 | Feature | Description |
