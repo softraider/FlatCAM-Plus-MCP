@@ -36,7 +36,7 @@ This branch adds **FlatCAM Plus MCP**, an [MCP](https://modelcontextprotocol.io)
 NCC, paint, cutout and drilling paths, create milling and laser CNC jobs (including UV solder-mask exposure) and
 export G-code. It has no machine-control tools: sending G-code to a machine stays a manual step.
 
-* Windows installer with the MCP server bundled: [Releases](https://github.com/softraider/FlatCAM-Plus/releases)
+* Windows installer with the MCP server bundled: [Releases](https://github.com/softraider/FlatCAM-Plus-MCP/releases)
 * Setup, tools and safety model: [`mcp_server/README.md`](mcp_server/README.md)
 
 ```powershell
