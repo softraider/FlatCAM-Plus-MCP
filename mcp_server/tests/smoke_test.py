@@ -88,7 +88,8 @@ def main():
         check(init["result"]["serverInfo"]["name"] == "FlatCAM Plus MCP", "unexpected server name")
         rpc("notifications/initialized", notify=True)
         names = {t["name"] for t in rpc("tools/list")["result"]["tools"]}
-        for required in ("launch_flatcam", "open_files", "isolate", "ncc", "cncjob", "export_gcode", "list_objects"):
+        for required in ("launch_flatcam", "open_files", "isolate", "ncc", "cncjob", "export_gcode", "list_objects",
+                         "export_films"):
             check(required in names, "missing tool %s" % required)
 
         t = tool("launch_flatcam", headless=a.headless, wait_seconds=300)
@@ -123,6 +124,19 @@ def main():
         kinds = sorted(o["kind"] for o in objs["objects"])
         check(kinds.count("cncjob") == 2 and kinds.count("geometry") == 2 and "gerber" in kinds,
               "unexpected objects: %s" % kinds)
+
+        # photo films from the Gerber file (copper negative + positive, mask) via the running app
+        pdf = out / "films.pdf"
+        if pdf.exists():
+            pdf.unlink()
+        g = str(Path(a.gerber).resolve())
+        t = tool("export_films", out_pdf=str(pdf), films=[
+            {"gerber": g, "kind": "copper", "side": "bottom", "polarity": "neg"},
+            {"gerber": g, "kind": "copper", "side": "top", "polarity": "pos"},
+            {"gerber": g, "kind": "mask", "side": "bottom"}])
+        check("Written" in t and "(mirrored)" in t, "export_films failed")
+        check(pdf.exists() and pdf.stat().st_size > 5000 and pdf.read_bytes()[:5] == b"%PDF-",
+              "films.pdf not written")
 
         if a.screenshot:
             img = tool("screenshot", fit=True)

@@ -17,6 +17,8 @@ Endpoints:
                             -> runs Tcl in the GUI thread, waits for background jobs, returns result + messages
   POST /screenshot {"fit": bool}
                             -> PNG (base64) of the plot canvas
+  POST /film {"films": [{gerber, kind, side, polarity}], "out": pdf, "outline", "drill", "name", "copies",
+              "mark_dia"}   -> 1:1 A4 PDF photo films (see appCommon/PhotoFilm.py)
 """
 
 import atexit
@@ -334,6 +336,14 @@ class _Handler(BaseHTTPRequestHandler):
                 self._send(200, self.owner.run_tcl(str(body.get("script", "")), timeout))
             elif self.path == "/screenshot":
                 res = self.owner.submit("screenshot", {"fit": bool(body.get("fit", False))}, 60)
+                res["ok"] = True
+                self._send(200, res)
+            elif self.path == "/film":
+                # file based and GUI independent: runs in this HTTP worker thread with FlatCAM's parsers
+                from appCommon.PhotoFilm import export_films
+                res = export_films(body.get("films", []), body["out"], body.get("outline"), body.get("drill"),
+                                   body.get("name", ""), int(body.get("copies", 2)),
+                                   float(body.get("mark_dia", 0.4)))
                 res["ok"] = True
                 self._send(200, res)
             else:

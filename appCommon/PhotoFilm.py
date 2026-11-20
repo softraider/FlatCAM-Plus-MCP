@@ -9,8 +9,8 @@ Builds an A4 PDF at true 1:1 scale from Gerber/Excellon files (parsed with FlatC
 Mirroring follows the usual "printed side against the board" rule for Gerbers in top view:
 top layers are mirrored, bottom layers are not.
 
-Usage (CLI):
-    python film.py --out films.pdf --outline Edge_Cuts.gbr \
+Used by the FlatCAM Plus MCP bridge (POST /film) and from the command line:
+    python -m appCommon.PhotoFilm --out films.pdf --outline Edge_Cuts.gbr \
         --film "B_Cu.gbr:copper:bottom:neg" --film "B_Cu.gbr:copper:bottom:pos" \
         --film "B_Mask.gbr:mask:bottom" --film "F_Mask.gbr:mask:top" --drill board.drl
 """
@@ -292,6 +292,30 @@ def build_films(specs, outline_path=None, drill_path=None, margin=2.0, mark_dia=
     return films, mirrors, board
 
 
+def export_films(specs, out_path, outline_path=None, drill_path=None, name="", copies=2, mark_dia=0.4):
+    """Build films and write the PDF. specs: list of dicts or tuples (gerber, kind, side, polarity).
+    Returns a summary dict."""
+    norm = []
+    for sp in specs:
+        if isinstance(sp, dict):
+            sp = (sp["gerber"], sp.get("kind", "copper"), sp.get("side", "bottom"), sp.get("polarity", "neg"))
+        path, kind, side, pol = sp
+        if kind not in ("copper", "mask") or side not in ("top", "bottom") or pol not in ("neg", "pos"):
+            raise ValueError("bad film spec %r: kind copper|mask, side top|bottom, polarity neg|pos" % (sp,))
+        if not Path(path).exists():
+            raise FileNotFoundError(path)
+        norm.append((str(path), kind, side, pol))
+    if not norm:
+        raise ValueError("no films requested")
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    films, mirrors, board = build_films(norm, outline_path, drill_path, mark_dia=mark_dia)
+    write_pdf(films, out_path, mirrors, board_name=name or Path(norm[0][0]).stem.split("-")[0], copies=copies)
+    bx = board.bounds
+    return {"pdf": str(out_path.resolve()), "board_mm": [round(bx[2] - bx[0], 2), round(bx[3] - bx[1], 2)],
+            "films": [{"title": f.title, "mirrored": m} for f, m in zip(films, mirrors)], "copies": copies}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", required=True)
@@ -305,17 +329,13 @@ def main():
     a = ap.parse_args()
     specs = []
     for f in a.film:
-        # allow Windows paths with drive letters ("D:\...")
         bits = f.split(":")
-        if len(bits) >= 2 and len(bits[0]) == 1:  # drive letter
+        if len(bits) >= 2 and len(bits[0]) == 1:  # Windows drive letter ("D:\...")
             bits = [bits[0] + ":" + bits[1]] + bits[2:]
-        path, kind, side = bits[0], bits[1], bits[2]
-        pol = bits[3] if len(bits) > 3 else "neg"
-        specs.append((path, kind, side, pol))
-    films, mirrors, board = build_films(specs, a.outline, a.drill, mark_dia=a.mark_dia)
-    write_pdf(films, a.out, mirrors, board_name=a.name or Path(specs[0][0]).stem.split("-")[0], copies=a.copies)
-    bx = board.bounds
-    print("Board %.2f x %.2f mm; %d films written to %s" % (bx[2] - bx[0], bx[3] - bx[1], len(films), a.out))
+        specs.append((bits[0], bits[1], bits[2], bits[3] if len(bits) > 3 else "neg"))
+    res = export_films(specs, a.out, a.outline, a.drill, a.name, a.copies, a.mark_dia)
+    print("Board %.2f x %.2f mm; %d films written to %s" % (res["board_mm"][0], res["board_mm"][1],
+                                                          len(res["films"]), res["pdf"]))
 
 
 if __name__ == "__main__":

@@ -199,9 +199,13 @@ jobs:
           up="${{ needs.sync.outputs.upstream_sha }}"
           installer=$(ls release/*.exe | head -1)
           name=$(basename "$installer")
-          n=1
-          while gh release view "v${version}-mcp.${n}" >/dev/null 2>&1; do n=$((n+1)); done
+          # next number after the highest existing v<version>-mcp.N (releases, drafts and tags), never reusing
+          # the number of a deleted release
+          last=$( { gh release list --limit 200 --json tagName --jq '.[].tagName'; git tag --list; } \
+                  | sed -n "s/^v${version//./\\.}-mcp\.\([0-9]\+\)$/\1/p" | sort -n | tail -1)
+          n=$(( ${last:-0} + 1 ))
           tag="v${version}-mcp.${n}"
+          echo "Release tag: ${tag}"
           sed -e "s/{VERSION}/${version}/g" -e "s/{INSTALLER}/${name}/g" \
               -e "s/{SHA256}/$(cat release/sha256.txt)/g" \
               -e "s/{UPSTREAM_SHA}/${up}/g" -e "s/{UPSTREAM_SHORT}/${up::7}/g" -e "s/{MCP_SHORT}/${sha::7}/g" \

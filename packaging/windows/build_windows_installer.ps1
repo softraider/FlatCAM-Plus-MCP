@@ -366,6 +366,8 @@ function Build-PyInstallerTarget {
         "--collect-all", "rasterio",
         "--collect-all", "OpenGL",
         "--collect-all", "matplotlib",
+        # PDF output for photo films (appCommon/PhotoFilm.py, used by the MCP bridge)
+        "--collect-all", "reportlab",
         "--exclude-module", "PyQt5",
         "--exclude-module", "PySide2",
         "--exclude-module", "PySide6",

@@ -68,7 +68,8 @@ mcp = FastMCP(
         "by most laser preprocessors. UV solder-mask exposure: open the mask Gerber and run ncc on it (fills "
         "everything except the openings) or paint (fills the openings), then cncjob with a laser preprocessor. "
         "Units follow the FlatCAM preferences (see list_objects). Always check results with list_objects and "
-        "screenshot. This server never sends G-code to a machine."
+        "screenshot. For photo-resist / UV-mask exposure films printed on transparency use export_films (works on "
+        "Gerber files directly). This server never sends G-code to a machine."
     ),
 )
 
@@ -460,6 +461,53 @@ def export_gcode(name: str, filename: str, preamble: Optional[str] = None, posta
     if p.exists():
         r += "\nWritten %s (%d bytes)" % (p.resolve(), p.stat().st_size)
     return r
+
+
+# ----------------------------------------------------------------------------------------------------------------
+# photo films (toner/inkjet transparency for UV exposure)
+# ----------------------------------------------------------------------------------------------------------------
+def _films_local(payload: dict) -> dict:
+    """Run the film generator in-process (source checkout only)."""
+    if not (REPO_DIR / "appCommon" / "PhotoFilm.py").exists():
+        raise RuntimeError("FlatCAM Plus with film support is not running. Call launch_flatcam first "
+                           "(film export needs FlatCAM Plus v1.1.0-mcp.3 or newer).")
+    if str(REPO_DIR) not in sys.path:
+        sys.path.insert(0, str(REPO_DIR))
+    from appCommon.PhotoFilm import export_films as _export
+    return _export(payload["films"], payload["out"], payload.get("outline"), payload.get("drill"),
+                   payload.get("name", ""), payload.get("copies", 2), payload.get("mark_dia", 0.4))
+
+
+@mcp.tool()
+def export_films(films: list[dict], out_pdf: str, outline: Optional[str] = None, drill: Optional[str] = None,
+                 name: str = "", copies: int = 2, mark_dia: float = 0.4) -> str:
+    """Create printable photo films (A4 PDF, true 1:1 scale) for UV exposure of copper and solder mask,
+    straight from Gerber/Excellon FILES (objects loaded in FlatCAM are not needed).
+
+    films: list of {"gerber": path, "kind": "copper"|"mask", "side": "top"|"bottom", "polarity": "neg"|"pos"}.
+      copper "neg" = negative film for negative-acting dry-film photoresist (copper clear);
+      copper "pos" = positive film for positive photoresist (copper black);
+      mask = UV-curable solder mask film (pad openings black). polarity is ignored for masks.
+    Top layers are mirrored and bottom layers are not (printed side against the board, Gerbers in top view).
+    outline: Edge_Cuts Gerber (board size and frame); drill: Excellon file, adds drill-centre marks of
+    mark_dia mm on copper films. copies: copies of each film for stacking (density).
+    The page has a 50 mm scale bar and corner registration marks; print at 100% / actual size."""
+    payload = {"films": films, "out": str(Path(out_pdf).expanduser().resolve()), "outline": outline,
+               "drill": drill, "name": name, "copies": copies, "mark_dia": mark_dia}
+    res = None
+    if _alive():
+        res = _call("POST", "/film", payload, timeout=600)
+        if not res.get("ok") and res.get("error") == "not found":
+            res = None  # FlatCAM Plus build without film support
+        elif not res.get("ok"):
+            return "ERROR: %s" % res.get("error")
+    if res is None:
+        res = _films_local(payload)
+    lines = ["Written %s" % res["pdf"], "Board %.2f x %.2f mm, %d copies per film:" % (
+        res["board_mm"][0], res["board_mm"][1], res["copies"])]
+    lines += ["  - %s%s" % (f["title"], " (mirrored)" if f["mirrored"] else "") for f in res["films"]]
+    lines.append("Print at 100% / actual size and check the 50 mm scale bar.")
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":
