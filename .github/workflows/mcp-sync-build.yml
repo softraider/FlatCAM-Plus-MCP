@@ -95,7 +95,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.sync.outputs.changed == 'true' && 'mcp-sync-staging' || env.MCP_BRANCH }}
+          # exact commit chosen by the sync job (pushes made while the run is in progress do not race in)
+          ref: ${{ needs.sync.outputs.sha }}
 
       - name: Verify checked-out commit
         shell: pwsh
