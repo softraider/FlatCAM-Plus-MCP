@@ -35,8 +35,9 @@ BRIDGE_PORT_ENV = "FLATCAM_MCP_BRIDGE_PORT"
 
 
 def discovery_file_path():
-    base = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), ".config")
-    return os.path.join(base, "FlatCAMPlusMCP", "bridge.json")
+    # Use the user's home folder rather than %APPDATA%: some MCP clients run servers with a redirected APPDATA,
+    # and both sides must agree on this path.
+    return os.path.join(os.path.expanduser("~"), ".flatcam_plus_mcp", "bridge.json")
 
 
 class _Job:

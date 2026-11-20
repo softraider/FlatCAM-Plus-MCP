@@ -76,9 +76,27 @@ mcp = FastMCP(
 # ----------------------------------------------------------------------------------------------------------------
 # bridge client
 # ----------------------------------------------------------------------------------------------------------------
+def _discovery_candidates() -> list[Path]:
+    """Where FlatCAM Plus may have written its bridge.json. The first entry is the current location
+    (home folder); the others are used by builds up to v1.1.0-mcp.2 (%APPDATA%)."""
+    home = Path(os.path.expanduser("~"))
+    paths = [home / ".flatcam_plus_mcp" / "bridge.json",
+             home / "AppData" / "Roaming" / "FlatCAMPlusMCP" / "bridge.json"]
+    if os.environ.get("APPDATA"):
+        paths.append(Path(os.environ["APPDATA"]) / "FlatCAMPlusMCP" / "bridge.json")
+    unique = []
+    for p in paths:
+        if p not in unique:
+            unique.append(p)
+    return unique
+
+
 def _discovery_path() -> Path:
-    base = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), ".config")
-    return Path(base) / "FlatCAMPlusMCP" / "bridge.json"
+    """Most recently written bridge.json, or the default location if none exists."""
+    existing = [p for p in _discovery_candidates() if p.exists()]
+    if not existing:
+        return _discovery_candidates()[0]
+    return max(existing, key=lambda p: p.stat().st_mtime)
 
 
 def _bridge_info() -> Optional[dict]:
@@ -186,6 +204,17 @@ def _cmd(command: str, name: str, **kw) -> str:
 # ----------------------------------------------------------------------------------------------------------------
 # app lifecycle
 # ----------------------------------------------------------------------------------------------------------------
+def _flatcam_exe_running(exe_name: str) -> bool:
+    if not exe_name.lower().startswith("flatcamplus") or sys.platform != "win32":
+        return False
+    try:
+        out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq %s" % exe_name, "/NH"], capture_output=True,
+                             text=True, timeout=15, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout
+        return exe_name.lower() in out.lower()
+    except Exception:
+        return False
+
+
 @mcp.tool()
 def launch_flatcam(headless: bool = False, wait_seconds: int = 180) -> str:
     """Start FlatCAM Plus with the automation bridge enabled (if it is not already running).
@@ -194,14 +223,20 @@ def launch_flatcam(headless: bool = False, wait_seconds: int = 180) -> str:
     if st:
         return "Already running (pid %s, headless=%s, %s objects)." % (st["pid"], st["headless"], st["objects"])
     args, cwd = _flatcam_command()
+    # FlatCAM Plus is single-instance: a second start only forwards its arguments to the open window and exits,
+    # so an instance opened without the bridge must be closed first.
+    if _flatcam_exe_running(Path(args[0]).name):
+        return ("FlatCAM Plus is already open without the MCP bridge. Ask the user to save their work, close it, "
+                "and start it from the 'FlatCAM Plus (MCP bridge)' shortcut (or let launch_flatcam start it).")
     env = dict(os.environ, FLATCAM_MCP_BRIDGE="1")
     args.append("--mcp=1")
     if headless:
         args.append("--headless=1")
-    try:
-        _discovery_path().unlink()
-    except FileNotFoundError:
-        pass
+    for p in _discovery_candidates():
+        try:
+            p.unlink()
+        except FileNotFoundError:
+            pass
     flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "DETACHED_PROCESS", 0)
     subprocess.Popen(args, cwd=cwd, env=env, creationflags=flags,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
